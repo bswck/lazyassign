@@ -3,13 +3,13 @@ Lazily assigned variables in Python
 
 ## Example
 ```py
-def provide(scope):
+def assigned(scope):
     return "hello"
 
-var = LazyVariable(provide, name="var", scope="function")
+var = LazyVariable(assigned, name="var", scope="function")
 
 def func():
-    # on first 'var' expression f_locals['var'] = provide(f_locals) is triggered
+    # on first 'var' expression f_locals['var'] = assigned(f_locals) is triggered
     print(var, type(var))
 
 func()
