@@ -6,9 +6,10 @@ The most implicit dependency injection Python has ever seen
 def factory(scope):
     return "hello"
 
-# if once is True, the factory is called once and reused in every child scope
-# if the scope is global, the injection is unretrievable after first reference and replaced with the injected object
-var = injection(name="var", factory=factory, scope="local", once=True)
+# if once is True, the factory is called once and reused in every child scope.
+# once doesnt matter for global scope setting which makes the injection
+# object unretrievable after first reference (the given names are replaced with the injected object)
+var = injection("var", factory=factory, scope="local", once=True)
 
 def func():
     # on first 'var' expression f_locals['var'] = factory(f_locals) is triggered
