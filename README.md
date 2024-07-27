@@ -6,7 +6,9 @@ The most implicit dependency injection Python has ever seen
 def factory(scope):
     return "hello"
 
-var = injection(name="var", factory=factory, scope="local")
+# if once is True, the factory is called once and reused in every child scope
+# if the scope is global, the injection is unretrievable after first reference and replaced with the injected object
+var = injection(name="var", factory=factory, scope="local", once=True)
 
 def func():
     # on first 'var' expression f_locals['var'] = factory(f_locals) is triggered
@@ -17,6 +19,6 @@ func()
 ```
 outputs
 ```
-<LazyAssignment 'var' scope='local'>
+<Injection 'var' scope='local' once=True>
 hello <class 'str'>
 ```
