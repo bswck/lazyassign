@@ -6,7 +6,7 @@ Lazily assigned variables in Python
 def provide(scope):
     return "hello"
 
-var = LazyVariable(provide, scope="function")
+var = LazyVariable(provide, name="var", scope="function")
 
 def func():
     # on first 'var' expression f_locals['var'] = provide(f_locals) is triggered
