@@ -8,7 +8,8 @@ def factory(scope):
 
 # if once is True, the factory is called once and reused in every child scope.
 # once doesnt matter for global scope setting which makes the injection
-# object unretrievable after first reference (the given names are replaced with the injected object)
+# object unretrievable after first reference (the given variable names are assigned the injected object
+# and the injection object gets freed)
 var = injection("var", factory=factory, scope="local", once=True)
 
 def func():
