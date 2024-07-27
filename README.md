@@ -17,6 +17,6 @@ func()
 ```
 outputs
 ```
-<LazyVariable 'var'>
+<LazyVariable 'var' scope='function'>
 hello <class 'str'>
 ```
