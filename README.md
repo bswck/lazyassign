@@ -6,7 +6,7 @@ The most implicit dependency injection Python has ever seen
 def factory(scope):
     return "hello"
 
-var = Injection(name="var", factory=factory, scope="local")
+var = injection(name="var", factory=factory, scope="local")
 
 def func():
     # on first 'var' expression f_locals['var'] = factory(f_locals) is triggered
