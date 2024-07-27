@@ -12,7 +12,7 @@ def func():
     # on first 'var' expression f_locals['var'] = factory(f_locals) is triggered
     print(var, type(var))
 
-print(var)  # prints the lazy variable object because of scope="function"
+print(var)  # prints the lazy variable object because of scope="function" (this is module scope)
 func()
 ```
 outputs
