@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
 
-    from typing_extensions import TypeAlias
+    from typing_extensions import ParamSpec, TypeAlias
 
     Locals: TypeAlias = "dict[str, Any]"
 
@@ -22,8 +22,8 @@ class InjectionKey(str):
     def __init__(self, key: str, early: EarlyObject) -> None:
         self.__origin = key
         self.__hash = hash(key)
+        self.__reset__ = False
         self.__early = early
-        self.__injecting = False
 
     def __new__(cls, key: str, early: EarlyObject) -> None:
         return super().__new__(cls, key)
@@ -31,13 +31,20 @@ class InjectionKey(str):
     def __eq__(self, other: str) -> bool:
         if self.__origin != other:
             return False
-        if self.__injecting:
+
+        if self.__reset__:
+            self.__reset__ = False
             return True
-        caller_frame = get_frame(1)
-        caller_locals = caller_frame.f_locals
+
+        caller_locals = get_frame(1).f_locals
+
+        if caller_locals.get("__no_inject__"):
+            return True
+
         with self.__early.__mutex__:
-            self.__injecting = True
+            __no_inject__ = True
             self.__early.__inject__(caller_locals)
+        return True
 
     def __hash__(self) -> int:
         return self.__hash
@@ -48,14 +55,14 @@ class Injection(Generic[Object]):
     aliases: list[str]
     factory: Callable[[Locals], Object]
     once: bool = False
+    dynamic: bool = False
 
     def mount(self, *, into: Locals) -> list[str]:
-        keys = []
+        dynamic = self.dynamic
         state = ObjectState(once=self.once, factory=self.factory)
         for alias in self.aliases:
-            early = EarlyObject(alias, state)
+            early = EarlyObject(alias, state, dynamic)
             key = InjectionKey(alias, early)
-            keys.append(key)
             into[key] = early
 
 
@@ -76,17 +83,36 @@ class ObjectState(Generic[Object]):
 
 
 class EarlyObject(Generic[Object]):
-    def __init__(self, alias: str, state: ObjectState[Object]) -> None:
+    def __init__(self, alias: str, state: ObjectState[Object], dynamic: bool) -> None:
         self.__mutex__ = RLock()
+        self.__dynamic = dynamic
         self.__alias = alias
         self.__state = state
 
-    def __inject__(self, scope: Locals) -> None:
+    def __inject__(
+        self,
+        scope: Locals | None = None,
+    ) -> None:
+        if scope is None:
+            scope = get_frame(1).f_locals
+
+        __no_inject__ = True
+
+        key = next(filter(self.__alias.__eq__, scope), None)
+        if key is None:
+            return
+
         self.__state.create(scope)
         obj, alias = self.__state.object, self.__alias
+
         with self.__mutex__:
             del scope[alias]
             scope[alias] = obj
+
+            if self.__dynamic:
+                del scope[alias]
+                key.__reset__ = True
+                scope[key] = obj
 
     def __repr__(self) -> str:
         return "<early>"
@@ -97,6 +123,7 @@ def injection(
     into: Locals | None = None,
     factory: Callable[[Locals], Object],
     once: bool = False,
+    dynamic: bool = False,
 ) -> Injection[Object]:
     """
     Create an injection.
@@ -110,11 +137,14 @@ def injection(
     factory
         A callable that creates the injected object.
     once
-        Whether to create the object once and bind it everywhere.
+        Whether to only create the object once and reuse it everywhere.
+    dynamic
+        Whether to still trigger recreating the object in the same scope
+        after successful creation. Useful as a replacement for `ContextVar` proxies.
     stack_offset
         How far (in frames) is the actual caller from this function's frame.
     """
-    inj = Injection([*aliases], factory=factory, once=once)
+    inj = Injection(aliases=[*aliases], factory=factory, dynamic=dynamic, once=once)
     if into is not None:
         inj.mount(into=into)
     return inj
