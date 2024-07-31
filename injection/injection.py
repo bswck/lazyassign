@@ -43,7 +43,7 @@ class InjectionKey(str):
 
         with self.early.__mutex__:
             __injection_recursive_guard__ = True
-            self.early.__inject__(caller_locals)
+            self.early.__inject__(self)
         return True
 
     def __hash__(self) -> int:
@@ -59,7 +59,7 @@ class Injection(Generic[Object]):
 
     def mount(self, *, into: Locals) -> list[str]:
         dynamic = self.dynamic
-        state = ObjectState(once=self.once, factory=self.factory)
+        state = ObjectState(once=self.once, scope=into, factory=self.factory)
         for alias in self.aliases:
             early = EarlyObject(alias, state, dynamic)
             key = InjectionKey(alias, early)
@@ -70,12 +70,16 @@ SENTINEL = object()
 
 
 class ObjectState(Generic[Object]):
-    object: Object
-
-    def __init__(self, once: bool, factory: Callable[[Locals], Object]) -> None:
+    def __init__(
+        self,
+        once: bool,
+        scope: Locals,
+        factory: Callable[[Locals], Object],
+    ) -> None:
         self.object = SENTINEL
         self.once = once
         self.factory = factory
+        self.scope = scope
 
     def create(self, scope: Locals) -> None:
         if self.object is SENTINEL or not self.once:
@@ -91,16 +95,15 @@ class EarlyObject(Generic[Object]):
 
     def __inject__(
         self,
-        scope: Locals | None = None,
+        key: InjectionKey,
     ) -> None:
-        if scope is None:
-            scope = get_frame(1).f_locals
+        scope = self.__state.scope
 
         __injection_recursive_guard__ = True
 
-        key = next(filter(self.__alias.__eq__, scope), None)
-        if key is None:
-            return
+        # To ever know if we're in a child scope:
+        # req_scope = get_frame(1).f_locals
+        # in_child_scope = next(filter(self.__alias.__eq__, req_scope), None) is None
 
         self.__state.create(scope)
         obj, alias = self.__state.object, self.__alias
@@ -110,7 +113,7 @@ class EarlyObject(Generic[Object]):
             scope[alias] = obj
 
             if self.__dynamic:
-                del scope[alias]
+                del scope[key]
                 key.reset = True
                 scope[key] = obj
 
