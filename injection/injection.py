@@ -112,7 +112,7 @@ class EarlyObject(Generic[Object]):
             del scope[alias]
             scope[alias] = obj
 
-            if self.__dynamic:
+            if self.__dynamic and not self.__state.once:
                 del scope[key]
                 key.reset = True
                 scope[key] = obj
