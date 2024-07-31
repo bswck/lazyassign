@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
 
-    from typing_extensions import ParamSpec, TypeAlias
+    from typing_extensions import TypeAlias
 
     Locals: TypeAlias = "dict[str, Any]"
 
@@ -38,11 +38,11 @@ class InjectionKey(str):
 
         caller_locals = get_frame(1).f_locals
 
-        if caller_locals.get("__no_inject__"):
+        if caller_locals.get("__injection_recursive_guard__"):
             return True
 
         with self.__early.__mutex__:
-            __no_inject__ = True
+            __injection_recursive_guard__ = True
             self.__early.__inject__(caller_locals)
         return True
 
@@ -96,7 +96,7 @@ class EarlyObject(Generic[Object]):
         if scope is None:
             scope = get_frame(1).f_locals
 
-        __no_inject__ = True
+        __injection_recursive_guard__ = True
 
         key = next(filter(self.__alias.__eq__, scope), None)
         if key is None:
