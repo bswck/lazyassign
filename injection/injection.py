@@ -20,20 +20,20 @@ Object = TypeVar("Object")
 
 class InjectionKey(str):
     def __init__(self, key: str, early: EarlyObject) -> None:
-        self.__origin = key
-        self.__hash = hash(key)
-        self.__reset__ = False
-        self.__early = early
+        self.origin = key
+        self.hash = hash(key)
+        self.reset = False
+        self.early = early
 
     def __new__(cls, key: str, early: EarlyObject) -> None:
         return super().__new__(cls, key)
 
     def __eq__(self, other: str) -> bool:
-        if self.__origin != other:
+        if self.origin != other:
             return False
 
-        if self.__reset__:
-            self.__reset__ = False
+        if self.reset:
+            self.reset = False
             return True
 
         caller_locals = get_frame(1).f_locals
@@ -41,13 +41,13 @@ class InjectionKey(str):
         if caller_locals.get("__injection_recursive_guard__"):
             return True
 
-        with self.__early.__mutex__:
+        with self.early.__mutex__:
             __injection_recursive_guard__ = True
-            self.__early.__inject__(caller_locals)
+            self.early.__inject__(caller_locals)
         return True
 
     def __hash__(self) -> int:
-        return self.__hash
+        return self.hash
 
 
 @dataclass
@@ -111,7 +111,7 @@ class EarlyObject(Generic[Object]):
 
             if self.__dynamic:
                 del scope[alias]
-                key.__reset__ = True
+                key.reset = True
                 scope[key] = obj
 
     def __repr__(self) -> str:
